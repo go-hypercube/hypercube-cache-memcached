@@ -69,10 +69,7 @@ func (c *MemcachedCache) Increment(ctx context.Context, key string, delta int64)
 		newValue, err = c.client.Decrement(key, uint64(-delta))
 	}
 	if errors.Is(err, memcache.ErrCacheMiss) {
-		initial := delta
-		if initial < 0 {
-			initial = 0
-		}
+		initial := max(delta, 0)
 		if setErr := c.client.Set(&memcache.Item{Key: key, Value: []byte(strconv.FormatInt(initial, 10))}); setErr != nil {
 			return 0, setErr
 		}
@@ -80,7 +77,6 @@ func (c *MemcachedCache) Increment(ctx context.Context, key string, delta int64)
 	}
 	return int64(newValue), err
 }
-
 
 func (c *MemcachedCache) Expire(ctx context.Context, key string, ttl time.Duration) error {
 	if ttl < 0 {
