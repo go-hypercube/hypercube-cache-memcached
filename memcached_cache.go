@@ -56,26 +56,47 @@ func (c *MemcachedCache) Has(ctx context.Context, key string) (bool, error) {
 	return err == nil, err
 }
 
-// Increment: Memcached only increments existing numeric keys — unlike
-// Redis' INCRBY it does not create the key at zero. This emulates Redis'
-// semantics, but the miss-then-set is NOT atomic (a concurrent Increment
-// on the same missing key can race). See caveats below.
 func (c *MemcachedCache) Increment(ctx context.Context, key string, delta int64) (int64, error) {
-	var newValue uint64
+	var value uint64
 	var err error
+
 	if delta >= 0 {
-		newValue, err = c.client.Increment(key, uint64(delta))
+		value, err = c.client.Increment(key, uint64(delta))
 	} else {
-		newValue, err = c.client.Decrement(key, uint64(-delta))
+		value, err = c.client.Decrement(key, uint64(-delta))
 	}
-	if errors.Is(err, memcache.ErrCacheMiss) {
-		initial := max(delta, 0)
-		if setErr := c.client.Set(&memcache.Item{Key: key, Value: []byte(strconv.FormatInt(initial, 10))}); setErr != nil {
-			return 0, setErr
-		}
+
+	if err == nil {
+		return int64(value), nil
+	}
+
+	if !errors.Is(err, memcache.ErrCacheMiss) {
+		return 0, err
+	}
+
+	initial := max(delta, 0)
+
+	err = c.client. Add(&memcache.Item{
+		Key:   key,
+		Value: []byte(strconv.FormatInt(initial, 10)),
+	})
+
+	if err == nil {
 		return initial, nil
 	}
-	return int64(newValue), err
+
+	if !errors.Is(err, memcache.ErrNotStored) {
+		return 0, err
+	}
+
+	// Someone else initialized the key.
+	if delta >= 0 {
+		value, err = c.client.Increment(key, uint64(delta))
+	} else {
+		value, err = c.client.Decrement(key, uint64(-delta))
+	}
+
+	return int64(value), err
 }
 
 func (c *MemcachedCache) Expire(ctx context.Context, key string, ttl time.Duration) error {
