@@ -1,5 +1,18 @@
 # hypercube-cache-memcached
 
+
+# ⚠️ Archived
+
+> **This repository is archived and no longer maintained.**
+
+Memcached support is no longer maintained by Hypercube.
+
+The `hypercube-cache-memcached` package has been discontinued and this repository is kept for historical and reference purposes only.
+
+No further development, bug fixes, or feature updates are planned for this repository.
+
+---
+
 Memcached driver for [go-hypercube](https://github.com/go-hypercube/go-hypercube)'s `cache.Cache` interface, backed by [`bradfitz/gomemcache`](https://github.com/bradfitz/gomemcache).
 
 ## Install
